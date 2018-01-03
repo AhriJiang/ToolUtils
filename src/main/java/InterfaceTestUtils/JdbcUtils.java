@@ -20,17 +20,17 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
-import DataBasePublicConfig.JiFengMallMySqlProperties;
+import DataBasePublicConfig.TestCaseDBConfig;
 
 public class JdbcUtils {
 	/**
 	 * @USERNAME 远程数据库用户名
 	 */
-	private String USERNAME=JiFengMallMySqlProperties.USERNAME;
+	private String USERNAME;
 	/**
 	 * @PASSWORD 远程数据库密码
 	 */
-	private String PASSWORD=JiFengMallMySqlProperties.PASSWORD;
+	private String PASSWORD;
 //	/**
 //	 * @DRIVER 远程数据库驱动类型
 //	 */
@@ -38,22 +38,22 @@ public class JdbcUtils {
 	/**
 	 * @SSHHOST SSH服务器HOST
 	 */
-	private String SSHHOST=JiFengMallMySqlProperties.SSHHOST;
+	private String SSHHOST;
 	/**
 	 * @SSHPORT SSH服务器端口号
 	 */
-	private int SSHPORT=JiFengMallMySqlProperties.SSHPORT;
-	private String SSHUSER=JiFengMallMySqlProperties.SSHUSER;
-	private String SSHPASSWORD=JiFengMallMySqlProperties.SSHPASSWORD;
-	private String LOCALURL=JiFengMallMySqlProperties.LOCALURL;
+	private int SSHPORT;
+	private String SSHUSER;
+	private String SSHPASSWORD;
+	private String LOCALURL;
 	/**
 	 * @URL 远程服务器连接URL
 	 */
-	private String URL=JiFengMallMySqlProperties.URL;
+	private String URL;
 	/**
 	 * @LOCALPORT  SSH服务器映射到localhost本机的端口号
 	 */
-	private int LOCALPORT=JiFengMallMySqlProperties.LOCALPORT;
+	private int LOCALPORT;
 	
 	
 	private Session session;
@@ -94,6 +94,12 @@ public class JdbcUtils {
 		}
 	}
 	
+	public JdbcUtils(String db_ip, String db_port, String db_userName, String db_password, String db_baseName) {
+		this.URL="jdbc:mysql://"+db_ip+":"+db_port+"/"+db_baseName;
+		this.USERNAME=db_userName;
+		this.PASSWORD=db_password;
+	}
+
 	/** 
      * 获得数据库的连接 
      * @return 
@@ -187,8 +193,8 @@ public class JdbcUtils {
      * @return 
      * @throws SQLException 
      */ 
-	public Map<String, Object> findSimpleResult(String sql, List<Object> params) throws SQLException{
-		Map<String, Object> map = new HashMap<String, Object>();
+	public Map<String, String> findSimpleResult(String sql, List<Object> params) throws SQLException{
+		Map<String, String> map = new HashMap<String, String>();
 		int index  = 1;
 		pstmt = connection.prepareStatement(sql);
 		if(params != null && !params.isEmpty()){
@@ -202,7 +208,7 @@ public class JdbcUtils {
 		while(resultSet.next()){
 			for(int i=0; i<col_len; i++ ){
 				String cols_name = metaData.getColumnName(i+1);
-				Object cols_value = resultSet.getObject(cols_name);
+				String cols_value = resultSet.getObject(cols_name).toString();
 				if(cols_value == null){
 					cols_value = "";
 				}
@@ -218,8 +224,8 @@ public class JdbcUtils {
      * @return 
      * @throws SQLException 
      */ 
-	public List<Map<String, Object>> findModeResult(String sql, List<Object> params) throws SQLException{
-		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+	public List<Map<String, String>> findModeResult(String sql, List<Object> params) throws SQLException{
+		List<Map<String, String>> list = new ArrayList<Map<String, String>>();
 		int index = 1;
 		pstmt = connection.prepareStatement(sql);
 		if(params != null && !params.isEmpty()){
@@ -231,10 +237,10 @@ public class JdbcUtils {
 		ResultSetMetaData metaData = resultSet.getMetaData();
 		int cols_len = metaData.getColumnCount();
 		while(resultSet.next()){
-			Map<String, Object> map = new HashMap<String, Object>();
+			Map<String, String> map = new HashMap<String, String>();
 			for(int i=0; i<cols_len; i++){
 				String cols_name = metaData.getColumnName(i+1);
-				Object cols_value = resultSet.getObject(cols_name);
+				String cols_value = resultSet.getObject(cols_name).toString();
 				if(cols_value == null){
 					cols_value = "";
 				}

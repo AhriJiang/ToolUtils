@@ -53,7 +53,7 @@ public class JDBCtest {
         String sql2 = "SELECT * from vndr_info_chk where VENDOR_NO=999888;"; 
         List<Object> params=new ArrayList<Object>();
         params.add(999888);
-        Map<String, Object> map = jdbcUtils.findSimpleResult(sql2, null);
+        Map<String, String> map = jdbcUtils.findSimpleResult(sql2, null);
         System.out.println(map.get("VENDOR_NO"));		
         jdbcUtils.releaseConn();
 	    //不利用反射查询多个记录  

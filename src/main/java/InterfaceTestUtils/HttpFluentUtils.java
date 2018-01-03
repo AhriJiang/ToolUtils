@@ -1201,7 +1201,7 @@ public class HttpFluentUtils {
 		Sql=Sql.substring(0, Sql.length()-1);
 		Sql=Sql+" FROM "+TableName+" "+Condition;
 //		System.out.println(Sql);
-		List<Map<String, Object>> SqlResultList=jdbc.findModeResult(Sql, null);
+		List<Map<String, String>> SqlResultList=jdbc.findModeResult(Sql, null);
 		for (int i = 0; i < SqlResultList.size(); i++) {
 			if (flag==false) {
 				break;

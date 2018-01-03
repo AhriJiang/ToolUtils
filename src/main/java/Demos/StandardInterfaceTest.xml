@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="TestSonar" parallel="none">
+	<test name="Sonar">
+		<parameter name="db_ip" value="localhost" />
+		<parameter name="db_port" value="3306" />
+		<parameter name="db_userName" value="juntao" />
+		<parameter name="db_password" value="jjt20030439" />
+		<parameter name="db_baseName" value="project_t" />
+		<parameter name="sql" value="SELECT * FROM " />
+		<classes>
+			<class name="Demos.StandardInterfaceTest" />
+		</classes>
+	</test>
+	<!--reportNG监听 -->
+	<listeners>
+		<listener class-name="org.uncommons.reportng.HTMLReporter" />
+		<listener class-name="org.uncommons.reportng.JUnitXMLReporter" />
+	</listeners>
+</suite> <!-- Suite -->

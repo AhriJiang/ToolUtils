@@ -20,19 +20,23 @@ import org.jooq.exception.DataAccessException;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
 
-import DataBasePublicConfig.JiFengMallMySqlProperties;
+import DataBasePublicConfig.TestCaseDBConfig;
 
 public class JooqUtils {
 
-	private String USERNAME = JiFengMallMySqlProperties.USERNAME;
-	private String PASSWORD = JiFengMallMySqlProperties.PASSWORD;
-	private String URL = JiFengMallMySqlProperties.URL;
-	private SQLDialect DIALECT = JiFengMallMySqlProperties.DIALECT;
+	private String USERNAME;
+	private String PASSWORD;
+	private String URL;
+	private SQLDialect DIALECT;
 	private Connection connection;
 	public DSLContext dslContext;
 
-	public JooqUtils(DSLContext dslContext) {
+	public JooqUtils(DSLContext dslContext,String userName,String passWord,String url,String dialect) {
 		this.dslContext = dslContext;
+		this.USERNAME=userName;
+		this.PASSWORD=passWord;
+		this.URL=url;
+		this.DIALECT=SQLDialect.valueOf(dialect);
 	}
 
 	/**
@@ -404,7 +408,7 @@ public class JooqUtils {
 		}
 
 	}
-
+	
 	public void DeleteAny(Table<?> Table) {
 		dslContext.deleteFrom(Table).execute();
 	}
