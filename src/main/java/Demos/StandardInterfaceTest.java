@@ -19,7 +19,7 @@ public class StandardInterfaceTest {
 	String sql;
 	JdbcUtils user_jdbc;
 
-	@Parameters({ "sql", "db_ip", "db_port", "db_userName", "db_password", "db_baseName" })
+	@Parameters({ "user_sql", "user_db_ip", "user_db_port", "user_db_userName", "user_db_password", "user_db_baseName" })
 	@BeforeClass()
 	public void BeforeRun(String sql, String user_db_ip, String user_db_port, String user_db_userName,
 			String user_db_password, String user_db_baseName) throws Exception {
