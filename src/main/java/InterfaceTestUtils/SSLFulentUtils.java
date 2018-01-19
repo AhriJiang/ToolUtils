@@ -15,6 +15,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -67,6 +68,9 @@ public class SSLFulentUtils {
 		this.ServerIp=pro.getProperty("ServerIp");
 		this.clientBuilder=BuildConnection(proxyFlag);
 	}
+	
+	
+	
 	
 	/**
 	 * 获取参数Response的Header信息,构造SSLFluent实例
@@ -671,5 +675,190 @@ public class SSLFulentUtils {
 		HttpEntity entity = multBuilder.build();
 		
 		return entity;
+	}
+
+	public String Request(Map<String, String> data) {
+		
+		String Folder=data.get("API_CATALOG");
+		String HttpMethod=data.get("HTTP_METHOD");
+		//Get请求
+		if (HttpMethod.equals("0")) {
+			
+			String params;
+			params = SetGETRequestParams(data);
+			
+			//设置Uri
+			URI uri=new URI("https", data.get("INV_FIELD"), Folder, params);
+			
+			//日志打印
+			logger.info("GET请求参数:" + params);
+			logger.info("GET请求测试字段: " + data.get("TEST_PURPOSE"));
+			logger.info("测试描述:"+ data.get("TEST_CASE_DESCRIPTION"));
+			logger.info("GET请求:" + uri.toString() + params);
+			
+			HttpGet request=new HttpGet(uri);
+			
+			return GetRequestResponse(request);
+			
+		}
+		//Post请求
+		else if (HttpMethod.equals("1")) {
+			
+			//设置Uri
+			URI uri=new URI("https", ServerIp, Folder);
+			
+			//json格式Post请求
+			if (data.get("CONTENT_TYPE").toLowerCase().equals("application/json;charset=utf-8")) {
+				
+				//日志打印
+				logger.info("POST请求: " + uri.toString());
+				logger.info("POST请求测试字段: " + data.get("TEST_PURPOSE"));
+				logger.info("POST请求测试目的:"+data.get("TEST_CASE_DESCRIPTION"));
+				
+				//请求body内容
+				String RequestBody = "";
+				//stringBuffer过渡拼接body
+				StringBuffer stf = new StringBuffer();
+				
+				HttpPost request=new HttpPost(uri);
+				request.setHeader("ContentType", "application/json;charset=utf-8");
+				
+				if (jsb.has("HasJsonArrays")&&(jsb.has("HasJsonObjects")==false)) {
+
+					logger.info("POST请求包含JsonArray数组");
+					String JsonArrayTags = jsb.getString("HasJsonArrays");
+					
+					RequestBody = SetJsonObjectRequestBodyHasJsonArrays(jsb, JsonArrayTags, stf, RequestBody);
+
+				}else if (jsb.has("HasJsonObjects")&&(jsb.has("HasJsonArrays")==false)) {
+					
+					String JsonObjectTags = jsb.getString("HasJsonObjects");
+					RequestBody=SetJsonObjectRequestBodyHasJsonObjects(jsb, JsonObjectTags, stf, RequestBody);
+	
+				}else if (jsb.has("HasJsonArrays")&&jsb.has("HasJsonObjects")) {
+					
+					logger.info("POST请求包含JsonArray数组和JsonObjects");
+					String JsonObjectTags = jsb.getString("HasJsonObjects");
+					String JsonArrayTages = jsb.getString("HasJsonArrays");
+					RequestBody=SetJsonObjectRequestMultiJson(jsb, JsonObjectTags,JsonArrayTages, stf, RequestBody);
+					
+				}
+					else {
+
+					RequestBody=jsb.toString();
+				}
+				
+				StringEntity entity=new StringEntity(RequestBody, "utf-8");
+				request.setEntity(entity);
+				
+				return GetRequestResponse(request);
+				
+			}else {
+				
+				String RequestBody = SetPOSTRequestBody(jsb, notNeededParamTags);
+				
+				//日志打印
+				logger.info("标准POST请求: " + uri.toString());
+				logger.info("POST请求测试字段: " + jsb.get("TestCaseCore"));
+				logger.info("标准请求body: " + RequestBody);
+				
+				HttpPost request=new HttpPost(uri);
+				StringEntity entity=new StringEntity(RequestBody, "utf-8");
+				request.setEntity(entity);
+				
+				return GetRequestResponse(request);
+			}
+		}
+		//UPLOAD
+		else if(HttpMethod.equals("2")){
+			
+			String exception = "上传文件时,出了一个小意外";
+			URI uri=new URI("https", ServerIp, Folder);
+			
+			if (jsb.has("FilePath")) {
+				
+				String fileNameWithPath = jsb.getString("FilePath");
+				File uploadFile = new File(fileNameWithPath);
+				HttpEntity entity = SetPostFileRequestWithParams(jsb);
+				logger.info("上传测试字段: "+jsb.getString("TestCaseCore")+"-----"+ jsb.getString("测试目的"));
+				logger.info("准备上传文件: "+ jsb.getString("FilePath"));
+				
+				HttpPost request=new HttpPost(uri);
+				clientBuilder=clientBuilder.setConnectionTimeToLive(1, TimeUnit.MINUTES);
+				
+				return GetRequestResponse(request);
+
+			} else {
+				logger.info("没有找到FilePath,请检查Excel数据源");
+				return exception;
+			}
+		}else if (HttpMethod.equals("3")) {
+			
+			String params;
+			params = SetGETRequestParams(jsb, notNeededParamTags);
+
+			URI uri=new URI("https", ServerIp, Folder, params);
+			
+			if (jsb.has("DownloadFilePath")) {
+				
+				logger.info("准备下载文件到目录: "+ jsb.getString("DownloadFilePath"));
+
+				File File =new File(jsb.getString("DownloadFilePath")+"/result.dump");
+				if (!File.exists()) {
+					try {
+						File.createNewFile();
+					} catch (Exception e) {
+						logger.warn("尝试创建下载路径失败, 请手动追加下载文件路径:"+File.getAbsolutePath());
+						e.printStackTrace();
+					}
+				}
+				
+				HttpGet request=new HttpGet(uri);
+				SaveAsFile(request, File);
+				
+				String FileSavePath=File.getPath();
+				File.delete();
+				
+				return FileSavePath;
+			}else {
+				
+				logger.warn("没有找到DownloadFilePath关键字段");
+				return "没有找到DownloadFilePath关键字段";
+				
+			}
+			
+		}else if(HttpMethod.equals("4")){
+			
+			String params;
+			params = SetGETRequestParams(jsb, notNeededParamTags);
+			
+			URI uri=new URI("https", ServerIp, Folder, params);
+			
+			logger.info("DELETE请求参数:" + params);
+			logger.info("DELETE请求测试字段: " + jsb.get("TestCaseCore"));
+			logger.info("DELETE请求:" + uri.toString());
+			
+			HttpDelete request=new HttpDelete(uri);
+			return GetRequestResponse(request);
+			
+		}else{
+			logger.info(jsb.get("Method") + "这个方法暂时还没写好");
+			return jsb.get("Method") + "这个方法暂时还没写好";
+		}
+		
+	
+
+	
+		
+	}
+
+	private String SetGETRequestParams(Map<String, String> data) {
+		String params="?";
+		String[] keys=data.get("TEST_CASE_KEY_SET").split(",");
+		String[] values=data.get("TEST_CASE_VALUE_SET").split(",");
+		for (int i = 0; i < keys.length; i++) {
+			params=params+keys[i]+"="+values[i];
+		}
+		return params;
 	}
 }

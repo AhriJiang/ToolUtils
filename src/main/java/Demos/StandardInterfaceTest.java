@@ -36,7 +36,7 @@ public class StandardInterfaceTest {
 
 	@Test(dataProvider = "caseData")
 	public void Test(Map<String, String> data) {
-		new ExecHttpTest().execTestCase(data);
+		new ExecHttpTest().execTestCase(data,user_jdbc);
 	}
 
 	@AfterClass()
