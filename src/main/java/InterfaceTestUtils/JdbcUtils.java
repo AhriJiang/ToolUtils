@@ -333,7 +333,9 @@ public class JdbcUtils {
      */  
 	public void releaseConn(){
 		
-		session.disconnect();
+		if (session != null) {
+			session.disconnect();
+		}
 		
 		if(resultSet != null){
 			try{

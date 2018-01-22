@@ -681,6 +681,9 @@ public class SSLFulentUtils {
 		
 		String Folder=data.get("API_CATALOG");
 		String HttpMethod=data.get("HTTP_METHOD");
+		String ServerIp=data.get("INV_FIELD");
+		//自定义的万能Cookie
+		String MasterCookie=data.get("MASTER_COOKIE");
 		//Get请求
 		if (HttpMethod.equals("0")) {
 			
@@ -688,7 +691,7 @@ public class SSLFulentUtils {
 			params = SetGETRequestParams(data);
 			
 			//设置Uri
-			URI uri=new URI("https", data.get("INV_FIELD"), Folder, params);
+			URI uri=new URI("https", ServerIp, Folder, params);
 			
 			//日志打印
 			logger.info("GET请求参数:" + params);
@@ -697,6 +700,7 @@ public class SSLFulentUtils {
 			logger.info("GET请求:" + uri.toString() + params);
 			
 			HttpGet request=new HttpGet(uri);
+			request.setHeader("Cookie",MasterCookie);
 			
 			return GetRequestResponse(request);
 			
@@ -708,46 +712,25 @@ public class SSLFulentUtils {
 			URI uri=new URI("https", ServerIp, Folder);
 			
 			//json格式Post请求
-			if (data.get("CONTENT_TYPE").toLowerCase().equals("application/json;charset=utf-8")) {
+			if (data.get("CONTENT_TYPE").equals("1")) {
 				
 				//日志打印
 				logger.info("POST请求: " + uri.toString());
 				logger.info("POST请求测试字段: " + data.get("TEST_PURPOSE"));
 				logger.info("POST请求测试目的:"+data.get("TEST_CASE_DESCRIPTION"));
 				
-				//请求body内容
-				String RequestBody = "";
-				//stringBuffer过渡拼接body
-				StringBuffer stf = new StringBuffer();
+				String[] testKeys=data.get("TEST_CASE_KEY_SET").split("&&");
+				String[] testValues=data.get("TEST_CASE_VALUE_SET").split("&&");
+				
+				JSONObject jsb=new JSONObject();
+				for (int i = 0; i < testKeys.length; i++) {
+					jsb.put(testKeys[i], testValues[i]);
+				}
 				
 				HttpPost request=new HttpPost(uri);
 				request.setHeader("ContentType", "application/json;charset=utf-8");
-				
-				if (jsb.has("HasJsonArrays")&&(jsb.has("HasJsonObjects")==false)) {
-
-					logger.info("POST请求包含JsonArray数组");
-					String JsonArrayTags = jsb.getString("HasJsonArrays");
-					
-					RequestBody = SetJsonObjectRequestBodyHasJsonArrays(jsb, JsonArrayTags, stf, RequestBody);
-
-				}else if (jsb.has("HasJsonObjects")&&(jsb.has("HasJsonArrays")==false)) {
-					
-					String JsonObjectTags = jsb.getString("HasJsonObjects");
-					RequestBody=SetJsonObjectRequestBodyHasJsonObjects(jsb, JsonObjectTags, stf, RequestBody);
-	
-				}else if (jsb.has("HasJsonArrays")&&jsb.has("HasJsonObjects")) {
-					
-					logger.info("POST请求包含JsonArray数组和JsonObjects");
-					String JsonObjectTags = jsb.getString("HasJsonObjects");
-					String JsonArrayTages = jsb.getString("HasJsonArrays");
-					RequestBody=SetJsonObjectRequestMultiJson(jsb, JsonObjectTags,JsonArrayTages, stf, RequestBody);
-					
-				}
-					else {
-
-					RequestBody=jsb.toString();
-				}
-				
+				request.setHeader("Cookie",MasterCookie);
+				String RequestBody=jsb.toString();
 				StringEntity entity=new StringEntity(RequestBody, "utf-8");
 				request.setEntity(entity);
 				
@@ -755,11 +738,12 @@ public class SSLFulentUtils {
 				
 			}else {
 				
-				String RequestBody = SetPOSTRequestBody(jsb, notNeededParamTags);
+				String RequestBody = SetPOSTRequestBody(data);
 				
 				//日志打印
-				logger.info("标准POST请求: " + uri.toString());
-				logger.info("POST请求测试字段: " + jsb.get("TestCaseCore"));
+				logger.info("POST请求: " + uri.toString());
+				logger.info("POST请求测试字段: " + data.get("TEST_PURPOSE"));
+				logger.info("POST请求测试目的:"+data.get("TEST_CASE_DESCRIPTION"));
 				logger.info("标准请求body: " + RequestBody);
 				
 				HttpPost request=new HttpPost(uri);
@@ -775,27 +759,26 @@ public class SSLFulentUtils {
 			String exception = "上传文件时,出了一个小意外";
 			URI uri=new URI("https", ServerIp, Folder);
 			
-			if (jsb.has("FilePath")) {
 				
-				String fileNameWithPath = jsb.getString("FilePath");
+				String fileNameWithPath = data.get("UPLOAD_FILE_PATH");
 				File uploadFile = new File(fileNameWithPath);
-				HttpEntity entity = SetPostFileRequestWithParams(jsb);
-				logger.info("上传测试字段: "+jsb.getString("TestCaseCore")+"-----"+ jsb.getString("测试目的"));
-				logger.info("准备上传文件: "+ jsb.getString("FilePath"));
+				HttpEntity entity = SetPostFileRequestWithParams(data);
+				logger.info("上传测试字段: "+data.get("TEST_PURPOSE")+"-----"+ data.get("TEST_CASE_DESCRIPTION"));
+				logger.info("准备上传文件: "+ data.get("UPLOAD_FILE_PATH"));
 				
 				HttpPost request=new HttpPost(uri);
+				request.setHeader("Cookie", MasterCookie);
+				
 				clientBuilder=clientBuilder.setConnectionTimeToLive(1, TimeUnit.MINUTES);
 				
 				return GetRequestResponse(request);
 
-			} else {
-				logger.info("没有找到FilePath,请检查Excel数据源");
-				return exception;
-			}
-		}else if (HttpMethod.equals("3")) {
+		}
+		//DOWNLOAD
+		else if (HttpMethod.equals("3")) {
 			
 			String params;
-			params = SetGETRequestParams(jsb, notNeededParamTags);
+			params = SetGETRequestParams(data);
 
 			URI uri=new URI("https", ServerIp, Folder, params);
 			
@@ -830,27 +813,71 @@ public class SSLFulentUtils {
 		}else if(HttpMethod.equals("4")){
 			
 			String params;
-			params = SetGETRequestParams(jsb, notNeededParamTags);
+			params = SetGETRequestParams(data);
 			
 			URI uri=new URI("https", ServerIp, Folder, params);
 			
 			logger.info("DELETE请求参数:" + params);
-			logger.info("DELETE请求测试字段: " + jsb.get("TestCaseCore"));
+			logger.info("DELETE请求测试字段: " + data.get("TEST_PURPOSE"));
 			logger.info("DELETE请求:" + uri.toString());
 			
 			HttpDelete request=new HttpDelete(uri);
 			return GetRequestResponse(request);
 			
 		}else{
-			logger.info(jsb.get("Method") + "这个方法暂时还没写好");
-			return jsb.get("Method") + "这个方法暂时还没写好";
-		}
-		
-	
-
-	
+			logger.info("方法暂时还没未支持");
+			return "方法暂时还没未支持";
+		}	
 		
 	}
+
+	private HttpEntity SetPostFileRequestWithParams(Map<String, String> data) {
+		Set<String> set = data.keySet();
+		String Key;
+		String Value;
+		List paramTags = (List) set.stream().collect(Collectors.toList());
+		//在服务器位置上的文件存放路径
+		String filePath = data.get("UPLOAD_FILE_PATH");
+		File uploadFile = new File(filePath);
+		MultipartEntityBuilder multBuilder=MultipartEntityBuilder.create()
+				.setMode(HttpMultipartMode.BROWSER_COMPATIBLE)
+		        .setCharset(Charset.forName("utf-8"))
+		        .addBinaryBody("file", uploadFile);
+//		        .(jsb.optString("file", "file"), uploadFile, ContentType.parse((String) jsb.get("ContentType")), jsb.get("FilenameWithType").toString());
+		
+		for (int i = 0; i < paramTags.size(); i++) {
+			Key=paramTags.get(i).toString();
+			Value=data.get(Key).toString();
+			multBuilder=multBuilder.addTextBody(Key, Value);
+		}
+		
+		HttpEntity entity = multBuilder.build();
+		
+		return entity;
+	}
+
+
+
+
+	/**
+	 * 从JsonObject数据中抽取必要的参数拼接成POST请求参数
+	 * 
+	 * @param data
+	 *            传入数据库data
+	 * @return 返回请求Body,如: aa=11&bb=22
+	 */
+	private String SetPOSTRequestBody(Map<String, String> data) {
+		String params="";
+		String[] keys=data.get("TEST_CASE_KEY_SET").split(",");
+		String[] values=data.get("TEST_CASE_VALUE_SET").split(",");
+		for (int i = 0; i < keys.length; i++) {
+			params=keys[i]+"="+values[i]+"&";
+		}
+		return params.substring(0, params.length() - 1);
+	}
+
+
+
 
 	private String SetGETRequestParams(Map<String, String> data) {
 		String params="?";

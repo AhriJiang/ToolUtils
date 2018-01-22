@@ -12,7 +12,7 @@ public class ExecHttpTest {
 		
 		//组装并执行http请求
 		SSLFulentUtils sf=new SSLFulentUtils("0");
-		
+		sf.Request(data);
 	}
 
 }
