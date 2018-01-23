@@ -95,7 +95,7 @@ public class JdbcUtils {
 	}
 	
 	public JdbcUtils(String db_ip, String db_port, String db_userName, String db_password, String db_baseName) {
-		this.URL="jdbc:mysql://"+db_ip+":"+db_port+"/"+db_baseName;
+		this.URL="jdbc:mysql://"+db_ip+":"+db_port+"/"+db_baseName+"?useSSL=true";
 		this.USERNAME=db_userName;
 		this.PASSWORD=db_password;
 	}

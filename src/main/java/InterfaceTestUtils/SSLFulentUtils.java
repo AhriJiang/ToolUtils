@@ -64,7 +64,7 @@ public class SSLFulentUtils {
 	 * @param proxyFlag 0:不使用代理, 1:使用代理
 	 */
 	public SSLFulentUtils(String proxyFlag){
-		this.pro=GetHttpfluentProperties(pro);
+//		this.pro=GetHttpfluentProperties(pro);
 		this.ServerIp=pro.getProperty("ServerIp");
 		this.clientBuilder=BuildConnection(proxyFlag);
 	}
@@ -125,7 +125,7 @@ public class SSLFulentUtils {
 		
 		ClientBuilder=ClientBuilder
 				.setConnectionManager(connManager);
-		if (Response.containsHeader("ContentType")) {
+		if (Response!=null&&Response.containsHeader("ContentType")) {
 			Collection<Header> HeaderCollection=new ArrayList();
 			Header[] Headers=Response.getAllHeaders();
 			for (int i = 0; i < Headers.length; i++) {
@@ -677,11 +677,13 @@ public class SSLFulentUtils {
 		return entity;
 	}
 
-	public String Request(Map<String, String> data) {
+	public String Request(Map<String, String> data) throws URISyntaxException, ClientProtocolException, IOException {
 		
 		String Folder=data.get("API_CATALOG");
 		String HttpMethod=data.get("HTTP_METHOD");
 		String ServerIp=data.get("INV_FIELD");
+		String UploadPath=data.get("UPLOAD_FILE_PATH");
+		String DownloadPath=data.get("DOWNLOAD_FILE_PATH");
 		//自定义的万能Cookie
 		String MasterCookie=data.get("MASTER_COOKIE");
 		//Get请求
@@ -709,7 +711,7 @@ public class SSLFulentUtils {
 		else if (HttpMethod.equals("1")) {
 			
 			//设置Uri
-			URI uri=new URI("https", ServerIp, Folder);
+			URI uri=new URI("https", ServerIp, Folder,"");
 			
 			//json格式Post请求
 			if (data.get("CONTENT_TYPE").equals("1")) {
@@ -759,9 +761,7 @@ public class SSLFulentUtils {
 			String exception = "上传文件时,出了一个小意外";
 			URI uri=new URI("https", ServerIp, Folder);
 			
-				
-				String fileNameWithPath = data.get("UPLOAD_FILE_PATH");
-				File uploadFile = new File(fileNameWithPath);
+				File uploadFile = new File(UploadPath);
 				HttpEntity entity = SetPostFileRequestWithParams(data);
 				logger.info("上传测试字段: "+data.get("TEST_PURPOSE")+"-----"+ data.get("TEST_CASE_DESCRIPTION"));
 				logger.info("准备上传文件: "+ data.get("UPLOAD_FILE_PATH"));
@@ -782,11 +782,11 @@ public class SSLFulentUtils {
 
 			URI uri=new URI("https", ServerIp, Folder, params);
 			
-			if (jsb.has("DownloadFilePath")) {
+			if (DownloadPath!=null) {
 				
-				logger.info("准备下载文件到目录: "+ jsb.getString("DownloadFilePath"));
+				logger.info("准备下载文件到目录: "+ DownloadPath);
 
-				File File =new File(jsb.getString("DownloadFilePath")+"/result.dump");
+				File File =new File(DownloadPath+"/result.dump");
 				if (!File.exists()) {
 					try {
 						File.createNewFile();
@@ -868,10 +868,10 @@ public class SSLFulentUtils {
 	 */
 	private String SetPOSTRequestBody(Map<String, String> data) {
 		String params="";
-		String[] keys=data.get("TEST_CASE_KEY_SET").split(",");
-		String[] values=data.get("TEST_CASE_VALUE_SET").split(",");
+		String[] keys=data.get("TEST_CASE_KEY_SET").split("&&");
+		String[] values=data.get("TEST_CASE_VALUE_SET").split("&&");
 		for (int i = 0; i < keys.length; i++) {
-			params=keys[i]+"="+values[i]+"&";
+			params=params+keys[i]+"="+values[i]+"&";
 		}
 		return params.substring(0, params.length() - 1);
 	}

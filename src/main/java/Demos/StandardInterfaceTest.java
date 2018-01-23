@@ -1,9 +1,12 @@
 package Demos;
 
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.apache.http.client.ClientProtocolException;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -35,7 +38,7 @@ public class StandardInterfaceTest {
 	}
 
 	@Test(dataProvider = "caseData")
-	public void Test(Map<String, String> data) {
+	public void Test(Map<String, String> data) throws ClientProtocolException, URISyntaxException, IOException {
 		new ExecHttpTest().execTestCase(data,user_jdbc);
 	}
 
