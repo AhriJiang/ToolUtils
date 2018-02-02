@@ -46,6 +46,7 @@ import org.apache.http.entity.mime.HttpMultipartMode;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.util.EntityUtils;
 import org.apache.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -180,7 +181,7 @@ public class SSLFulentUtils {
 				
 				HttpGet request=new HttpGet(uri);
 				
-				return GetRequestResponse(request);
+				return GetRequestEntity(request);
 				
 			}
 			//Post请求
@@ -233,7 +234,7 @@ public class SSLFulentUtils {
 					StringEntity entity=new StringEntity(RequestBody, "utf-8");
 					request.setEntity(entity);
 					
-					return GetRequestResponse(request);
+					return GetRequestEntity(request);
 					
 				}else {
 					
@@ -248,7 +249,7 @@ public class SSLFulentUtils {
 					StringEntity entity=new StringEntity(RequestBody, "utf-8");
 					request.setEntity(entity);
 					
-					return GetRequestResponse(request);
+					return GetRequestEntity(request);
 				}
 			}else if(jsb.get("Method").equals("UPLOAD")){
 				
@@ -266,7 +267,7 @@ public class SSLFulentUtils {
 					HttpPost request=new HttpPost(uri);
 					clientBuilder=clientBuilder.setConnectionTimeToLive(1, TimeUnit.MINUTES);
 					
-					return GetRequestResponse(request);
+					return GetRequestEntity(request);
 
 				} else {
 					logger.info("没有找到FilePath,请检查Excel数据源");
@@ -319,7 +320,7 @@ public class SSLFulentUtils {
 				logger.info("DELETE请求:" + uri.toString());
 				
 				HttpDelete request=new HttpDelete(uri);
-				return GetRequestResponse(request);
+				return GetRequestEntity(request);
 				
 			}else{
 				logger.info(jsb.get("Method") + "这个方法暂时还没写好");
@@ -614,6 +615,7 @@ public class SSLFulentUtils {
 	 */
 	private String GetRequestResponse(HttpRequestBase request) throws ClientProtocolException, IOException {
 		
+//		return EntityUtils.toString(entity);
 		return clientBuilder
 				.build()
 				.execute(request)
@@ -704,7 +706,7 @@ public class SSLFulentUtils {
 			HttpGet request=new HttpGet(uri);
 			request.setHeader("Cookie",MasterCookie);
 			
-			return GetRequestResponse(request);
+			return GetRequestEntity(request);
 			
 		}
 		//Post请求
@@ -736,7 +738,7 @@ public class SSLFulentUtils {
 				StringEntity entity=new StringEntity(RequestBody, "utf-8");
 				request.setEntity(entity);
 				
-				return GetRequestResponse(request);
+				return GetRequestEntity(request);
 				
 			}else {
 				
@@ -752,7 +754,7 @@ public class SSLFulentUtils {
 				StringEntity entity=new StringEntity(RequestBody, "utf-8");
 				request.setEntity(entity);
 				
-				return GetRequestResponse(request);
+				return GetRequestEntity(request);
 			}
 		}
 		//UPLOAD
@@ -771,7 +773,7 @@ public class SSLFulentUtils {
 				
 				clientBuilder=clientBuilder.setConnectionTimeToLive(1, TimeUnit.MINUTES);
 				
-				return GetRequestResponse(request);
+				return GetRequestEntity(request);
 
 		}
 		//DOWNLOAD
@@ -830,6 +832,24 @@ public class SSLFulentUtils {
 		}	
 		
 	}
+	/**
+	 * 获取请求响应body主体,并且销毁静态变量
+	 * @param request http请求
+	 * @return 返回主体文本
+	 * @throws ClientProtocolException
+	 * @throws IOException
+	 */
+	private String GetRequestEntity(HttpRequestBase request) throws ClientProtocolException, IOException {
+		
+		HttpEntity entity= clientBuilder.build().execute(request).getEntity();
+		String RequestBody=EntityUtils.toString(entity);
+		EntityUtils.consume(entity);
+		
+		return RequestBody;
+	}
+
+
+
 
 	private HttpEntity SetPostFileRequestWithParams(Map<String, String> data) {
 		Set<String> set = data.keySet();

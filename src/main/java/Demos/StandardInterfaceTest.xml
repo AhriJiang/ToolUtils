@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
-<suite name="TestSonar" parallel="none">
+<suite name="Project_T" parallel="none">
 	<test name="Sonar">
 		<parameter name="user_db_ip" value="localhost" />
 		<parameter name="user_db_port" value="3306" />
