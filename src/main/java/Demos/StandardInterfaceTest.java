@@ -38,7 +38,7 @@ public class StandardInterfaceTest {
 	}
 
 	@Test(dataProvider = "caseData")
-	public void Test(Map<String, String> data) throws ClientProtocolException, URISyntaxException, IOException {
+	public void Test(Map<String, String> data) throws ClientProtocolException, URISyntaxException, IOException, SQLException {
 		new ExecHttpTest().execTestCase(data,user_jdbc);
 	}
 

@@ -224,7 +224,7 @@ public class AssertUtils {
 	 */
 	public boolean JsonPathAssert(Map<String, String> Sqldata, String responseJson) {
 
-		boolean Assertflag = true;
+		boolean Assertflag = false;
 
 		ReadContext ctx = JsonPath.parse(responseJson);
 		JSONObject jsonPath = new JSONObject(Sqldata.get("ASSERT_JSON"));
@@ -238,8 +238,11 @@ public class AssertUtils {
 			logger.info("预期Json返回值:" + userJpathValue);
 			String acturalValue = ctx.read(userJpath).toString();
 			logger.info("实际Json返回值:" + acturalValue);
-			if (!acturalValue.equals(userJpathValue)) {
+			if (acturalValue.equals(userJpathValue)) {
+				Assertflag = true;
+			}else {
 				Assertflag = false;
+				break;
 			}
 		}
 		return Assertflag;
@@ -247,7 +250,9 @@ public class AssertUtils {
 	}
 
 	/**
-	 * 根据Sql数据中的jsonPath数据,验证返回值的
+	 * 根据Sql数据中的html文本
+	 * 参数说明: left_border 文本左边界, right_border 文本右边界, index 匹配第几项 默认为0 匹配第1项
+	 * 实例: {"assert_html_text":[{"left_border":"ab","right_border":"c","index":"0"},{"left_border":"ab","right_border":"c","index":"1"}]}
 	 * 
 	 * @param Sqldata
 	 * @param responseJson
@@ -256,7 +261,9 @@ public class AssertUtils {
 	public boolean HtmlTextAssert(Map<String, String> Sqldata, String responseJson) {
 
 		boolean Assertflag = false;
-
+		
+		//没考虑多个验证点,需要添加
+		
 		JSONObject HtmlJson = new JSONObject(Sqldata.get("ASSERT_HTML_TEXT"));
 		String LBorder = HtmlJson.get("left_border").toString();
 		String RBorder = HtmlJson.get("right_border").toString();
@@ -282,5 +289,48 @@ public class AssertUtils {
 
 		return Assertflag;
 	}
+
+	public boolean SqlAssert(Map<String, String> data, String requestResult, JdbcUtils user_jdbc) throws SQLException {
+		
+		boolean Assertflag = false;
+		//[{"Sql":"","ExpectedKey":"","ExpectedValue":""},{"Sql":"","ExpectedKey":"","ExpectedValue":""}]
+		JSONArray SqlJsonArray=new JSONArray(data.get("ASSERT_SQL"));
+		String SqlString;
+		JSONObject SqlJsonObject;
+		String ExpecteKey;
+		String ExpectedValue;
+		String ResultValue;
+		Map<String,String> SqlResultMap;
+		int MaxAssertLength;
+		
+		for (int i = 0; i < SqlJsonArray.length(); i++) {
+			
+			MaxAssertLength=SqlJsonArray.length()+1;
+			logger.info("当前Sql验证循环:"+(i+1)+"/"+MaxAssertLength);
+			
+			SqlJsonObject=SqlJsonArray.getJSONObject(i);
+			SqlString=SqlJsonObject.getString("Sql");
+			SqlResultMap=user_jdbc.findModeResult(SqlString, null).get(0);
+			
+			ExpecteKey=SqlJsonObject.getString("ExpectedKey");
+			ExpectedValue=SqlJsonObject.getString("ExpectedValue");
+			ResultValue=SqlResultMap.get(ExpecteKey).toString();
+			logger.info("预期"+ExpecteKey+"的值为:"+ExpectedValue);
+			logger.info("实际数据库值为:"+ResultValue);
+			
+			if (ExpectedValue.equals(ResultValue)) {
+				Assertflag=true;
+				logger.info("第"+(i+1)+"次循环验证成功,继续下一环Sql验证");
+			}else{
+				Assertflag=false;
+				logger.info("第"+(i+1)+"次循环验证失败,Sql验证总体失败");
+				break;
+			}
+
+		}
+		
+		return Assertflag;
+	}
+
 
 }

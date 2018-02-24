@@ -7,12 +7,7 @@ import java.util.Map;
 
 import org.apache.http.client.ClientProtocolException;
 import org.apache.log4j.Logger;
-import org.json.JSONArray;
-import org.json.JSONObject;
 import org.testng.Assert;
-
-import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.ReadContext;
 
 import InterfaceTestUtils.AssertUtils;
 import InterfaceTestUtils.JdbcUtils;
@@ -24,7 +19,8 @@ public class ExecHttpTest {
 	private AssertUtils AssertUtil=new AssertUtils();
 	
 	public void execTestCase(Map<String, String> data, JdbcUtils user_jdbc)
-			throws ClientProtocolException, URISyntaxException, IOException{
+			throws ClientProtocolException, URISyntaxException, IOException, SQLException{
+		
 		// 执行用户增删改sql, 0 需要执行sql, 1 不需要执行sql
 		
 		boolean isNeedExcuteUpdateSql=data.get("PRE_UPDATE_SQL_FLAG").equals("0");
@@ -61,7 +57,9 @@ public class ExecHttpTest {
 		}
 		// 数据库验证
 		
-		
+		if(AssertUtil.SqlAssert(data,RequestResult,user_jdbc)==false){
+			AssertPassFlag=true;
+		}
 		
 		if (AssertPassFlag==true) {
 			Assert.fail();
