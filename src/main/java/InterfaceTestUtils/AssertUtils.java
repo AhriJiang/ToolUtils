@@ -227,20 +227,17 @@ public class AssertUtils {
 		boolean Assertflag = false;
 
 		ReadContext ctx = JsonPath.parse(responseJson);
-		JSONObject jsonPath = new JSONObject(Sqldata.get("ASSERT_JSON"));
-		JSONArray jsonPathArray = jsonPath.getJSONArray("assert_json");
+		JSONArray jsonPathArray = new JSONArray(Sqldata.get("ASSERT_JSON"));
 
 		for (int i = 0; i < jsonPathArray.length(); i++) {
 			JSONObject json = jsonPathArray.getJSONObject(i);
 			String userJpath = json.getString("jpath");
-			logger.info("JsonPath路径:" + userJpath);
 			String userJpathValue = json.get("value").toString();
-			logger.info("预期Json返回值:" + userJpathValue);
 			String acturalValue = ctx.read(userJpath).toString();
-			logger.info("实际Json返回值:" + acturalValue);
+			logger.info("JsonPath路径:" + userJpath+" 预期Json返回值:" + userJpathValue+" 实际Json返回值:" + acturalValue);
 			if (acturalValue.equals(userJpathValue)) {
 				Assertflag = true;
-			}else {
+			} else {
 				Assertflag = false;
 				break;
 			}
@@ -249,88 +246,96 @@ public class AssertUtils {
 
 	}
 
-	/**
-	 * 根据Sql数据中的html文本
-	 * 参数说明: left_border 文本左边界, right_border 文本右边界, index 匹配第几项 默认为0 匹配第1项
-	 * 实例: {"assert_html_text":[{"left_border":"ab","right_border":"c","index":"0"},{"left_border":"ab","right_border":"c","index":"1"}]}
-	 * 
-	 * @param Sqldata
-	 * @param responseJson
-	 * @return 验证成功返回true,验证失败返回false
-	 */
-	public boolean HtmlTextAssert(Map<String, String> Sqldata, String responseJson) {
-
-		boolean Assertflag = false;
-		
-		//没考虑多个验证点,需要添加
-		
-		JSONObject HtmlJson = new JSONObject(Sqldata.get("ASSERT_HTML_TEXT"));
-		String LBorder = HtmlJson.get("left_border").toString();
-		String RBorder = HtmlJson.get("right_border").toString();
-
-		int count = 0;
-		int index = Integer.parseInt(HtmlJson.get("").toString());
-
-		String RegRule = LBorder + ".*?" + RBorder;
-		logger.info("文本匹配的规则:" + RegRule + ", 匹配index=" + index);
-		Pattern pattern = Pattern.compile(RegRule);
-		Matcher RegResult = pattern.matcher(responseJson);
-
-		while (RegResult.find()) {
-
-			if (!(count < index)) {
-				String FindResult = RegResult.group(0);
-				logger.info("匹配到预期结果文本:" + FindResult);
-				Assertflag = true;
-				return Assertflag;
-			}
-			count++;
-		}
-
-		return Assertflag;
-	}
-
+//	/**
+//	 * 根据Sql数据中的html文本 参数说明: left_border 文本左边界, right_border 文本右边界, index 匹配第几项
+//	 * 默认为0 匹配第1项 实例:
+//	 * [{"left_border":"ab","right_border":"c","index":"0"},{"left_border":"ab","right_border":"c","index":"1"}]
+//	 * 
+//	 * @param Sqldata
+//	 * @param responseJson
+//	 * @return 验证成功返回true,验证失败返回false
+//	 */
+//	public boolean HtmlTextAssert(Map<String, String> Sqldata, String responseJson) {
+//
+//		boolean Assertflag = false;
+//
+//		// 没考虑多个验证点,需要添加
+//
+//		JSONArray HtmlJsonArray = new JSONArray(Sqldata.get("ASSERT_HTML_TEXT"));
+//
+//		for (int i = 0; i < HtmlJsonArray.length(); i++) {
+//
+//			JSONObject HtmlJson = HtmlJsonArray.getJSONObject(i);
+//
+//			String LBorder = HtmlJson.get("left_border").toString();
+//			String RBorder = HtmlJson.get("right_border").toString();
+//
+//			int count = 0;
+//			int index = Integer.parseInt(HtmlJson.get("index").toString());
+//
+//			String RegRule = LBorder + ".*?" + RBorder;
+//			logger.info("文本匹配第" + (i + 1) + "组,文本匹配的规则:" + RegRule + ", 匹配index=" + index);
+//			Pattern pattern = Pattern.compile(RegRule);
+//			Matcher RegResult = pattern.matcher(responseJson);
+//
+//			while (RegResult.find()) {
+//
+//				if (!(count < index)) {
+//					String FindResult = RegResult.group(0);
+//					logger.info("匹配到预期结果文本:" + FindResult);
+//					Assertflag = true;
+//				}
+//				count++;
+//			}
+//			if (Assertflag == false) {
+//				break;
+//			}
+//
+//		}
+//		return Assertflag;
+//
+//	}
+//
 	public boolean SqlAssert(Map<String, String> data, String requestResult, JdbcUtils user_jdbc) throws SQLException {
-		
+
 		boolean Assertflag = false;
-		//[{"Sql":"","ExpectedKey":"","ExpectedValue":""},{"Sql":"","ExpectedKey":"","ExpectedValue":""}]
-		JSONArray SqlJsonArray=new JSONArray(data.get("ASSERT_SQL"));
+		// [{"Sql":"","ExpectedKey":"","ExpectedValue":""},{"Sql":"","ExpectedKey":"","ExpectedValue":""}]
+		JSONArray SqlJsonArray = new JSONArray(data.get("ASSERT_SQL"));
 		String SqlString;
 		JSONObject SqlJsonObject;
 		String ExpecteKey;
 		String ExpectedValue;
 		String ResultValue;
-		Map<String,String> SqlResultMap;
+		Map<String, String> SqlResultMap;
 		int MaxAssertLength;
-		
+
 		for (int i = 0; i < SqlJsonArray.length(); i++) {
-			
-			MaxAssertLength=SqlJsonArray.length()+1;
-			logger.info("当前Sql验证循环:"+(i+1)+"/"+MaxAssertLength);
-			
-			SqlJsonObject=SqlJsonArray.getJSONObject(i);
-			SqlString=SqlJsonObject.getString("Sql");
-			SqlResultMap=user_jdbc.findModeResult(SqlString, null).get(0);
-			
-			ExpecteKey=SqlJsonObject.getString("ExpectedKey");
-			ExpectedValue=SqlJsonObject.getString("ExpectedValue");
-			ResultValue=SqlResultMap.get(ExpecteKey).toString();
-			logger.info("预期"+ExpecteKey+"的值为:"+ExpectedValue);
-			logger.info("实际数据库值为:"+ResultValue);
-			
+
+			MaxAssertLength = SqlJsonArray.length() + 1;
+			logger.info("当前Sql验证循环:" + (i + 1) + "/" + MaxAssertLength);
+
+			SqlJsonObject = SqlJsonArray.getJSONObject(i);
+			SqlString = SqlJsonObject.getString("Sql");
+			SqlResultMap = user_jdbc.findModeResult(SqlString, null).get(0);
+
+			ExpecteKey = SqlJsonObject.getString("ExpectedKey");
+			ExpectedValue = SqlJsonObject.getString("ExpectedValue");
+			ResultValue = SqlResultMap.get(ExpecteKey).toString();
+			logger.info("预期" + ExpecteKey + "的值为:" + ExpectedValue);
+			logger.info("实际数据库值为:" + ResultValue);
+
 			if (ExpectedValue.equals(ResultValue)) {
-				Assertflag=true;
-				logger.info("第"+(i+1)+"次循环验证成功,继续下一环Sql验证");
-			}else{
-				Assertflag=false;
-				logger.info("第"+(i+1)+"次循环验证失败,Sql验证总体失败");
+				Assertflag = true;
+				logger.info("第" + (i + 1) + "次循环验证成功,继续下一环Sql验证");
+			} else {
+				Assertflag = false;
+				logger.info("第" + (i + 1) + "次循环验证失败,Sql验证总体失败");
 				break;
 			}
 
 		}
-		
+
 		return Assertflag;
 	}
-
 
 }

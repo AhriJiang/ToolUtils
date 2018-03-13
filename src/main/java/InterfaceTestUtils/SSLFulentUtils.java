@@ -51,6 +51,15 @@ import org.apache.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import com.fasterxml.jackson.databind.jsonschema.JsonSchema;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.internal.bind.JsonTreeReader;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.spi.json.GsonJsonProvider;
+
+import net.minidev.json.JSONUtil;
+
 public class SSLFulentUtils {
 	
 	public static Logger logger = Logger.getLogger(SSLFulentUtils.class);
@@ -728,7 +737,20 @@ public class SSLFulentUtils {
 				
 				JSONObject jsb=new JSONObject();
 				for (int i = 0; i < testKeys.length; i++) {
-					jsb.put(testKeys[i], testValues[i]);
+					
+					JSONArray arr;
+					JSONObject obj;
+					
+					if (testValues[i].startsWith("[")&&testValues[i].endsWith("]")) {
+						arr=new JSONArray(testValues[i]);
+						jsb.put(testKeys[i], arr);
+					}else if(testValues[i].startsWith("{")&&testValues[i].endsWith("}")){
+						obj=new JSONObject(testValues[i]);
+						jsb.put(testKeys[i], obj);
+					}else{
+						jsb.put(testKeys[i], testValues[i]);
+					}
+					
 				}
 				
 				HttpPost request=new HttpPost(uri);
