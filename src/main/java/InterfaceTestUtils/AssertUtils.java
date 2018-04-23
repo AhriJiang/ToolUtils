@@ -239,6 +239,7 @@ public class AssertUtils {
 				Assertflag = true;
 			} else {
 				Assertflag = false;
+				logger.warn("JsonPath路径:" + userJpath + "该path预期值与返回值不符");
 				break;
 			}
 		}
@@ -299,40 +300,59 @@ public class AssertUtils {
 	public boolean SqlAssert(Map<String, String> data, String requestResult, JdbcUtils user_jdbc) throws SQLException {
 
 		boolean Assertflag = false;
-		// [{"Sql":"","ExpectedKey":"","ExpectedValue":""},{"Sql":"","ExpectedKey":"","ExpectedValue":""}]
+
 		JSONArray SqlJsonArray = new JSONArray(data.get("ASSERT_SQL"));
-		String SqlString;
-		JSONObject SqlJsonObject;
-		String ExpecteKey;
-		String ExpectedValue;
-		String ResultValue;
+		/**
+		 * 验证用的查询SQL, 参数说明:
+			selectSqlText,
+			assertSqlArray,
+				assertKey,
+				expecteValue
+		 */
+		String selectSqlText;
 		Map<String, String> SqlResultMap;
+		JSONObject SqlJsonObject;
+			JSONArray SqlAssertArray;
+				JSONObject SqlJsonAssertObject;
+					String ExpecteKey;
+					String ExpectedValue;
+					String ResultValue;
+					
 		int MaxAssertLength;
 
 		for (int i = 0; i < SqlJsonArray.length(); i++) {
 
 			MaxAssertLength = SqlJsonArray.length() + 1;
 			logger.info("当前Sql验证循环:" + (i + 1) + "/" + MaxAssertLength);
-
 			SqlJsonObject = SqlJsonArray.getJSONObject(i);
-			SqlString = SqlJsonObject.getString("Sql");
-			SqlResultMap = user_jdbc.findModeResult(SqlString, null).get(0);
-
-			ExpecteKey = SqlJsonObject.getString("ExpectedKey");
-			ExpectedValue = SqlJsonObject.getString("ExpectedValue");
-			ResultValue = SqlResultMap.get(ExpecteKey).toString();
-			logger.info("预期" + ExpecteKey + "的值为:" + ExpectedValue);
-			logger.info("实际数据库值为:" + ResultValue);
-
-			if (ExpectedValue.equals(ResultValue)) {
-				Assertflag = true;
-				logger.info("第" + (i + 1) + "次循环验证成功,继续下一环Sql验证");
-			} else {
-				Assertflag = false;
-				logger.info("第" + (i + 1) + "次循环验证失败,Sql验证总体失败");
+			selectSqlText = SqlJsonObject.getString("selectSqlText");
+			SqlResultMap = user_jdbc.findSimpleResult(selectSqlText, null);
+			SqlAssertArray=new JSONArray(SqlJsonObject.get("assertSqlArray").toString());
+			
+				for (int j = 0; j < SqlAssertArray.length(); j++) {
+					
+					SqlJsonAssertObject=SqlAssertArray.getJSONObject(j);
+					
+					ExpecteKey = SqlJsonAssertObject.getString("assertKey");
+					ExpectedValue = SqlJsonAssertObject.getString("ExpectedValue");
+					ResultValue = SqlResultMap.get(ExpecteKey).toString();
+					
+					logger.info("预期" + ExpecteKey + "的值为:" + ExpectedValue);
+					logger.info("实际数据库值为:" + ResultValue);
+		
+					if (ExpectedValue.equals(ResultValue)) {
+						Assertflag = true;
+					} else {
+						Assertflag = false;
+						logger.warn("第" + (j + 1) + "个CheckPoint验证失败,Sql总体验证失败");
+						break;
+					}
+				}
+				
+			if (Assertflag==false) {
+				logger.info("Sql验证失败, Sql文本: "+ selectSqlText);
 				break;
 			}
-
 		}
 
 		return Assertflag;

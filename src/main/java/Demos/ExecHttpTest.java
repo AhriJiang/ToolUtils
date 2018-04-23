@@ -3,9 +3,13 @@ package Demos;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.sql.SQLException;
+import java.util.Iterator;
 import java.util.Map;
 
+import org.apache.http.Header;
 import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -23,7 +27,7 @@ public class ExecHttpTest {
 	private AssertUtils AssertUtil = new AssertUtils();
 
 	public JSONArray execPreSql(Map<String, String> data, JdbcUtils user_jdbc) {
-		
+		//还没测试过这里的代码
 		JSONArray pre_sql_arrays;
 		/**
 		 * 包含4个字段: (0 启用 1 关闭) isDailyCI, isNeedRedis, isNeedPreHttpRequest,
@@ -80,7 +84,7 @@ public class ExecHttpTest {
 	}
 
 	public JSONArray execPreRedis(Map<String, String> data, JdbcUtils user_jdbc) {
-		
+		//还没测试过这里的代码
 		JSONArray pre_redis_arrays;
 		/**
 		 * 包含4个字段: (0 启用 1 关闭) isDailyCI, isNeedRedis, isNeedPreHttpRequest,
@@ -147,27 +151,85 @@ public class ExecHttpTest {
 		}
 
 	}
-	
-	public JSONArray exePreHttp(Map<String, String> data, JdbcUtils user_jdbc) {
+	/**
+	 * 通过一系列前置http请求,返回一个用于主请求的response,并告知这个response的哪些东西放置到主请求的位置
+	 *[
+		  {
+		    "url": "",
+		    "httpMethod": "",
+		    "contentType": "",
+		    "headers": [
+		      {
+		        "headerKeyName": "headerName",
+		        "headerKeyValue": "headerValue"
+		      }
+		    ],
+		    "cookies": [
+		      {
+		        "cookieKeyName": "Cookie",
+		        "cookieKeyValue": "cookieValue"
+		      }
+		    ],
+		    "body": "",
+		    "preRequestKVList": [
+		      {
+		        "keyName": "K1",
+		        "keyValue": "",
+		        "responsePosition": "header,body,path",
+		        "bodyJonPath": "",
+		        "requestPosition": "cookie,header,body,path"
+		      }
+		    ]
+		  }
+	]
+	 * @param data
+	 * @param user_jdbc
+	 * @return
+	 * @throws IOException 
+	 * @throws ClientProtocolException 
+	 */
+	public JSONArray exePreHttp(Map<String, String> data, JdbcUtils user_jdbc) throws ClientProtocolException, IOException {
 
-		JSONArray pre_Http_arrays;
+		
+		JSONArray preRequestList = new JSONArray(data.get("PRE_HTTP_REQUEST").toString());
 
 		JSONObject preActrionFlags = new JSONObject(data.get("PRE_ACTION_FLAGS"));
 		boolean isNeedPreHttpRequest = preActrionFlags.get("isNeedPreHttpRequest").equals("0");
-
+		
+		JSONArray nextPreRequestKVList = new JSONArray();
+		
 		if (isNeedPreHttpRequest) {
-
-			pre_Http_arrays = new JSONArray(data.get("PRE_HTTP_REQUEST").toString());
-
-			return pre_Http_arrays;
 			
-		} else {
-			return pre_Http_arrays = new JSONArray();
+			Header[] preResponseHeaders;
+			SSLFulentUtils sf = new SSLFulentUtils("0");
+			CloseableHttpResponse httpClientResponse = null;
+			
+			for (int i = 0; i < preRequestList.length(); i++){
+				
+				JSONObject preRequest = preRequestList.getJSONObject(i);
+				JSONArray preRequestKVList = preRequest.getJSONArray("preRequestKVList");
+				
+				//执行request获取response的header, 如果报空指针, 注意查看哪一步没有把preRequestHeaders,httpClientResponse实例化
+				if (i==0) {
+					httpClientResponse=sf.ExcuteFirstPreHttp(preRequest,null);
+				}else {
+					preResponseHeaders=httpClientResponse.getAllHeaders();
+					//把第N步骤的preRequestKVListResult对应的KV键值, 根据position放入N+1请求内并执行
+					httpClientResponse=sf.ExcutePreHttp(preRequest,preResponseHeaders,nextPreRequestKVList);
+				}
+
+				//执行过后的response将对应的值放入kvlist中				
+				
+				nextPreRequestKVList = sf.SetNextPreKVList(httpClientResponse,preRequestKVList);
+
+			}
+
 		}
+		return nextPreRequestKVList;
 
 	}
 	
-	public void execTestCase(Map<String, String> data, JSONArray preSqlResults, JSONArray preHttpResults,
+	public void execTestCase(Map<String, String> data, JSONArray preSqlResults, JSONArray preHttpResponseKVList,
 			JSONArray preRedisResults, JdbcUtils user_jdbc)
 			throws ClientProtocolException, URISyntaxException, IOException, SQLException {
 
@@ -176,24 +238,51 @@ public class ExecHttpTest {
 		String RequestResult = sf.Request(data);
 
 		// 验证结果
-
+		
 		Boolean AssertPassFlag = false;
-
-		// json验证
-		if (AssertUtil.JsonPathAssert(data, RequestResult) == false) {
-			AssertPassFlag = true;
+		
+		JSONObject afterActions=new JSONObject(data.get("AFTER_ACTION_FLAGS"));
+		/**
+		 * 包涵3个字段 (0 启用 1关闭):
+			jsonAssertFlag,
+			sqlAssertFlag,
+			isNeedAfterSql
+		 */
+		if (afterActions.get("jsonAssertFlag").equals("0")) {
+			//json验证
+			if (AssertUtil.JsonPathAssert(data, RequestResult) == false) {
+				AssertPassFlag = true;
+			}
 		}
-		// 数据库验证
-
-		// if(AssertUtil.SqlAssert(data,RequestResult,user_jdbc)==false){
-		// AssertPassFlag=true;
-		// }
-
+		if (afterActions.get("sqlAssertFlag").equals("0")) {
+			//sql验证
+			if (AssertUtil.SqlAssert(data, RequestResult, user_jdbc) == false) {
+				AssertPassFlag = true;
+			}
+		}
+		
+		if (afterActions.get("isNeedAfterSql").equals("0")) {
+			exeAfterSql(data,user_jdbc);
+		}
+		
 		if (AssertPassFlag == true) {
 			Assert.fail();
 		}
 	}
 
+	private void exeAfterSql(Map<String, String> data, JdbcUtils user_jdbc) {
+		JSONArray afterSqlTexts=new JSONArray(data.get("AFTER_SQL"));
+		for (int i = 0; i < afterSqlTexts.length(); i++) {
+			String afterSqlText=afterSqlTexts.get(i).toString();
+			try {
+				user_jdbc.updateByPreparedStatement(afterSqlText, null);
+			} catch (Exception e) {
+				logger.warn("执行AfterSql错误: "+ afterSqlText );
+				break;
+			}
+		}
+		
+	}
 
 
 }

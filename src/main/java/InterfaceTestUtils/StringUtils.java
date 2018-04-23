@@ -2,8 +2,10 @@ package InterfaceTestUtils;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.List;
+
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.ReadContext;
 
 import edu.emory.mathcs.backport.java.util.Arrays;
 
@@ -131,6 +133,19 @@ public class StringUtils {
 			result=Arrays.asList(sa);
 			return result;
 		}
+		
+	}
+	
+	/**
+	 * 从一个json的文本内容, 根据jsonPath获取节点的文本内容
+	 * @param jsonSource json文本内容
+	 * @param jsonPath json节点path表达式
+	 * @return
+	 */
+	public String JsonPathValue(String jsonSource,String jsonPath){
+		
+		ReadContext rtx = JsonPath.parse(jsonSource);
+		return rtx.read(jsonPath);
 		
 	}
 	

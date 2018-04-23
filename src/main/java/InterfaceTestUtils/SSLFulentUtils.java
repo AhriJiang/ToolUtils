@@ -14,6 +14,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -24,12 +25,14 @@ import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
 
 import org.apache.http.Header;
+import org.apache.http.HeaderElement;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpResponseException;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -44,18 +47,20 @@ import org.apache.http.conn.ssl.SSLContexts;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.entity.mime.HttpMultipartMode;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.util.EntityUtils;
 import org.apache.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.testng.Assert;
 
-import com.fasterxml.jackson.databind.jsonschema.JsonSchema;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.internal.bind.JsonTreeReader;
 import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.ReadContext;
 import com.jayway.jsonpath.spi.json.GsonJsonProvider;
 
 import net.minidev.json.JSONUtil;
@@ -774,6 +779,7 @@ public class SSLFulentUtils {
 				
 				HttpPost request=new HttpPost(uri);
 				StringEntity entity=new StringEntity(RequestBody, "utf-8");
+				request.setHeader("Cookie",MasterCookie);
 				request.setEntity(entity);
 				
 				return GetRequestEntity(request);
@@ -821,6 +827,7 @@ public class SSLFulentUtils {
 				}
 				
 				HttpGet request=new HttpGet(uri);
+				request.setHeader("Cookie",MasterCookie);
 				SaveAsFile(request, File);
 				
 				String FileSavePath=File.getPath();
@@ -846,6 +853,7 @@ public class SSLFulentUtils {
 			logger.info("DELETE请求:" + uri.toString());
 			
 			HttpDelete request=new HttpDelete(uri);
+			request.setHeader("Cookie",MasterCookie);
 			return GetRequestResponse(request);
 			
 		}else{
@@ -918,16 +926,345 @@ public class SSLFulentUtils {
 		return params.substring(0, params.length() - 1);
 	}
 
-
-
-
 	private String SetGETRequestParams(Map<String, String> data) {
 		String params="?";
 		String[] keys=data.get("TEST_CASE_KEY_SET").split(",");
 		String[] values=data.get("TEST_CASE_VALUE_SET").split(",");
 		for (int i = 0; i < keys.length; i++) {
-			params=params+keys[i]+"="+values[i];
+			params=params+keys[i]+"="+values[i]+"&";
 		}
-		return params;
+		return params.substring(0, params.length() - 1);
+	}
+
+	public JSONArray PreHttpRequest(JSONObject preRequest, JSONArray preRequestKVList, JSONObject pre_Http_response,Header[] headers) throws ClientProtocolException, IOException {
+		
+		String url=preRequest.get("url").toString();
+		String httpMethod=preRequest.get("httpMethod").toString();
+		String contentType=preRequest.get("contentType").toString();
+		JSONArray extraheaders=preRequest.getJSONArray("extraheaders");
+		JSONObject header;
+		JSONArray cookies=preRequest.getJSONArray("cookies");
+		JSONObject cookie;
+		String body=preRequest.get("body").toString();
+		JSONObject preRequestKV;
+		CloseableHttpResponse closableResponse;
+		
+		//Get请求
+		if (httpMethod.equals("0")) {
+
+			HttpGet request=new HttpGet(url);
+			
+			if (headers!=null) {
+				request.setHeaders(headers);
+			}
+			
+			for (Iterator<Object> iter = extraheaders.iterator(); iter.hasNext();) {
+				header=new JSONObject(iter.next().toString());
+				request.setHeader(header.get("headerKeyName").toString(), header.get("headerKeyValue").toString());
+			}
+			for (Iterator<Object> iter = cookies.iterator(); iter.hasNext();) {
+				cookie=new JSONObject(iter.next().toString());
+				request.setHeader("Cookie", cookie.get("cookieKeyValue").toString());
+			}
+			
+			closableResponse=clientBuilder.build().execute(request);
+			
+			for (int i = 0; i < preRequestKVList.length(); i++) {
+				
+				preRequestKV=new JSONObject(preRequestKVList.getJSONObject(0));
+				String keyName=preRequestKV.get("keyName").toString();
+				String keyValue="";
+				String bodyJonPath=preRequestKV.get("bodyJonPath").toString();
+				String responsPositon="";
+				String responsBody="";
+				
+				if (pre_Http_response.has(keyName)) {
+					
+					responsPositon=preRequestKV.get("responsPositon").toString();
+					
+					switch (responsPositon) {
+					case "headers":
+						keyValue=closableResponse.getFirstHeader(keyName).getValue();
+						preRequestKV.put("keyValue", keyValue);
+						break;
+					case "body":
+						responsBody=closableResponse.getEntity().toString();
+						keyValue=new StringUtils().JsonPathValue(responsBody, bodyJonPath);
+						preRequestKV.put("keyValue", keyValue);
+						break;
+					default:
+						break;
+					}
+				}else {
+					logger.warn("不存在KeyName: "+keyName+" , 请重新设计用例pre_Http_response参数");
+					Assert.fail();
+				}
+				preRequestKVList.put(i, preRequestKV);
+			}
+			
+			return preRequestKVList;
+			
+		}
+//		//Post请求
+//		else if (HttpMethod.equals("1")) {
+//			
+//			//设置Uri
+//			URI uri=new URI("https", ServerIp, Folder,"");
+//			
+//			//json格式Post请求
+//			if (data.get("CONTENT_TYPE").equals("1")) {
+//				
+//				//日志打印
+//				logger.info("POST请求: " + uri.toString());
+//				logger.info("POST请求测试字段: " + data.get("TEST_PURPOSE"));
+//				logger.info("POST请求测试目的:"+data.get("TEST_CASE_DESCRIPTION"));
+//				
+//				String[] testKeys=data.get("TEST_CASE_KEY_SET").split("&&");
+//				String[] testValues=data.get("TEST_CASE_VALUE_SET").split("&&");
+//				
+//				JSONObject jsb=new JSONObject();
+//				for (int i = 0; i < testKeys.length; i++) {
+//					
+//					JSONArray arr;
+//					JSONObject obj;
+//					
+//					if (testValues[i].startsWith("[")&&testValues[i].endsWith("]")) {
+//						arr=new JSONArray(testValues[i]);
+//						jsb.put(testKeys[i], arr);
+//					}else if(testValues[i].startsWith("{")&&testValues[i].endsWith("}")){
+//						obj=new JSONObject(testValues[i]);
+//						jsb.put(testKeys[i], obj);
+//					}else{
+//						jsb.put(testKeys[i], testValues[i]);
+//					}
+//					
+//				}
+//				
+//				HttpPost request=new HttpPost(uri);
+//				request.setHeader("ContentType", "application/json;charset=utf-8");
+//				request.setHeader("Cookie",MasterCookie);
+//				String RequestBody=jsb.toString();
+//				StringEntity entity=new StringEntity(RequestBody, "utf-8");
+//				request.setEntity(entity);
+//				
+//				return GetRequestEntity(request);
+//				
+//			}else {
+//				
+//				String RequestBody = SetPOSTRequestBody(data);
+//				
+//				//日志打印
+//				logger.info("POST请求: " + uri.toString());
+//				logger.info("POST请求测试字段: " + data.get("TEST_PURPOSE"));
+//				logger.info("POST请求测试目的:"+data.get("TEST_CASE_DESCRIPTION"));
+//				logger.info("标准请求body: " + RequestBody);
+//				
+//				HttpPost request=new HttpPost(uri);
+//				StringEntity entity=new StringEntity(RequestBody, "utf-8");
+//				request.setHeader("Cookie",MasterCookie);
+//				request.setEntity(entity);
+//				
+//				return GetRequestEntity(request);
+//			}
+//		}
+		return preRequestKVList;
+	}
+
+
+
+
+	public CloseableHttpResponse ExcuteFirstPreHttp(JSONObject preRequest, Header[] headers) throws ClientProtocolException, IOException {
+		
+		String url=preRequest.get("url").toString();
+		String httpMethod=preRequest.get("httpMethod").toString();
+		String contentType=preRequest.get("contentType").toString();
+		JSONArray extraheaders=preRequest.getJSONArray("extraheaders");
+		JSONObject header;
+		JSONArray cookies=preRequest.getJSONArray("cookies");
+		JSONObject cookie;
+		String body=preRequest.get("body").toString();
+		JSONObject preRequestKV;
+		CloseableHttpResponse closableResponse = null;
+		
+		//Get请求
+		if (httpMethod.equals("0")) {
+
+			HttpGet request=new HttpGet(url);
+			
+			if (headers!=null) {
+				request.setHeaders(headers);
+			}
+			
+			for (Iterator<Object> iter = extraheaders.iterator(); iter.hasNext();) {
+				header=new JSONObject(iter.next().toString());
+				request.setHeader(header.get("headerKeyName").toString(), header.get("headerKeyValue").toString());
+			}
+			for (Iterator<Object> iter = cookies.iterator(); iter.hasNext();) {
+				cookie=new JSONObject(iter.next().toString());
+				request.setHeader("Cookie", cookie.get("cookieKeyValue").toString());
+			}
+			
+			closableResponse=clientBuilder.build().execute(request);
+		}
+		
+		return closableResponse;
+	}
+
+	public JSONArray SetNextPreKVList(CloseableHttpResponse closableResponse, JSONArray preRequestKVList) {
+
+		JSONObject preRequestKV;
+
+		for (int i = 0; i < preRequestKVList.length(); i++) {
+
+			preRequestKV = new JSONObject(preRequestKVList.getJSONObject(i));
+			String keyName = preRequestKV.get("keyName").toString();
+			String keyValue = "";
+			String bodyJonPath = preRequestKV.get("bodyJonPath").toString();
+			String responsPositon = "";
+			String responsBody = "";
+
+			responsPositon = preRequestKV.get("responsPositon").toString();
+
+			switch (responsPositon) {
+			case "headers":
+				keyValue = closableResponse.getFirstHeader(keyName).getValue();
+				preRequestKV.put("keyValue", keyValue);
+				break;
+			case "body":
+				responsBody = closableResponse.getEntity().toString();
+				keyValue = new StringUtils().JsonPathValue(responsBody, bodyJonPath);
+				preRequestKV.put("keyValue", keyValue);
+				break;
+			default:
+				break;
+			}
+
+			preRequestKVList.put(i, preRequestKV);
+		}
+
+		return preRequestKVList;
+	}
+
+
+	public CloseableHttpResponse ExcutePreHttp(JSONObject preRequest, Header[] preResponseHeaders,
+			JSONArray nextPreRequestKVList) throws ClientProtocolException, IOException {
+		
+		// 还没写完
+
+		String url = preRequest.get("url").toString();
+		String httpMethod = preRequest.get("httpMethod").toString();
+		String contentType = preRequest.get("contentType").toString();
+		JSONArray extraheaders = preRequest.getJSONArray("extraheaders");
+		JSONObject header;
+		JSONArray cookies = preRequest.getJSONArray("cookies");
+		JSONObject cookie;
+		String body = preRequest.get("body").toString();
+		JSONObject preRequestKV;
+		CloseableHttpResponse closableResponse = null;
+
+		// Get请求
+		if (httpMethod.equals("0")) {
+			
+			url=SetGetMethodUrlByKVList(nextPreRequestKVList,url);
+			HttpRequestBase request = new HttpGet(url);
+			
+			//设置前一个response的header
+			if (preResponseHeaders != null) {
+				request.setHeaders(preResponseHeaders);
+			}
+
+			//设置nextPreRequestKVList中所有对应位置的参数的填充
+			
+			request=SetGetMethodHeaderByKVList(request,nextPreRequestKVList);
+			
+			
+			for (Iterator<Object> iter = extraheaders.iterator(); iter.hasNext();) {
+				header = new JSONObject(iter.next().toString());
+				request.setHeader(header.get("headerKeyName").toString(), header.get("headerKeyValue").toString());
+			}
+			for (Iterator<Object> iter = cookies.iterator(); iter.hasNext();) {
+				cookie = new JSONObject(iter.next().toString());
+				request.setHeader("Cookie", cookie.get("cookieKeyValue").toString());
+			}
+
+			closableResponse = clientBuilder.build().execute(request);
+		}
+
+		return closableResponse;
+	}
+
+
+
+	/**
+	 * getMethod 只能将requestPosition值为path的KV键值设定进来
+	 * @param nextPreRequestKVList
+	 * @param url
+	 * @return
+	 */
+	private String SetGetMethodUrlByKVList(JSONArray nextPreRequestKVList,String url) {
+		
+		String keyName;
+		String keyValue;
+		String rule;
+		JSONObject preRequestKV;
+
+		for (int i = 0; i < nextPreRequestKVList.length(); i++) {
+
+			preRequestKV = nextPreRequestKVList.getJSONObject(i);
+			rule = preRequestKV.get("requestPosition").toString();
+
+			switch (rule) {
+			case "cookie":
+				break;
+			case "header":
+				break;
+			case "path":
+				keyName=preRequestKV.get("keyName").toString();
+				keyValue = preRequestKV.get("keyValue").toString();
+				if (url.endsWith("?")) {
+					url=url+keyName+"="+keyValue+"&";
+				}else if(url.endsWith("&")){
+					url=url+keyName+"="+keyValue+"&";;
+				}
+				break;
+			default:
+				break;
+			}
+		}
+
+		return url;
+	}
+
+
+
+
+	private HttpRequestBase SetGetMethodHeaderByKVList(HttpRequestBase request, JSONArray nextPreRequestKVList) {
+		
+		String keyName;
+		String keyValue;
+		String rule;
+		JSONObject preRequestKV;
+
+		for (int i = 0; i < nextPreRequestKVList.length(); i++) {
+			
+			preRequestKV = nextPreRequestKVList.getJSONObject(i);
+			rule = preRequestKV.get("requestPosition").toString();
+			
+			switch (rule) {
+			case "cookie":
+				keyValue = preRequestKV.get("keyValue").toString();
+				request.setHeader("Cookie", keyValue);
+				break;
+			case "header":
+				keyName=preRequestKV.get("keyName").toString();
+				keyValue = preRequestKV.get("keyValue").toString();
+				request.setHeader(keyName, keyValue);
+				break;
+			default:
+				break;
+			}
+		}
+
+		return request;
 	}
 }

@@ -46,9 +46,9 @@ public class StandardInterfaceTest {
 			throws ClientProtocolException, URISyntaxException, IOException, SQLException {
 		ExecHttpTest execHttpTest = new ExecHttpTest();
 		JSONArray preSqlResults = execHttpTest.execPreSql(data, user_jdbc);
-		JSONArray preHttpResults=execHttpTest.exePreHttp(data,user_jdbc);
+		JSONArray preHttpResponse=execHttpTest.exePreHttp(data,user_jdbc);
 		JSONArray preRedisResults=execHttpTest.execPreRedis(data, user_jdbc);
-		execHttpTest.execTestCase(data, preSqlResults,preHttpResults,preRedisResults, user_jdbc);
+		execHttpTest.execTestCase(data, preSqlResults,preHttpResponse,preRedisResults, user_jdbc);
 	}
 
 	@AfterClass()
